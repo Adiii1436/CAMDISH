@@ -9,9 +9,6 @@ List<dynamic> icons = [
   [0.0, const Icon(Icons.exposure_zero)]
 ];
 List<dynamic> resolutions = [
-  [ResolutionPreset.high, 'High'],
   [ResolutionPreset.ultraHigh, 'Ultra High'],
-  [ResolutionPreset.max, 'Max'],
-  [ResolutionPreset.low, 'Low'],
-  [ResolutionPreset.medium, 'Medium']
+  [ResolutionPreset.high, 'High'],
 ];

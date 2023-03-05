@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import '../main.dart';
 import '../constant/constants.dart';
+import 'gallery_page.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({Key? key}) : super(key: key);
@@ -32,8 +33,8 @@ class _CameraPageState extends State<CameraPage>
   double _currentZoomLevel = 1.0;
   double _maxAvailableZoom = 1.0;
   final double aspectRatio = 4 / 3;
-  String _currentResolutionPreset = 'Medium';
-  ResolutionPreset currentResolutionPreset = ResolutionPreset.medium;
+  String _currentResolutionPreset = 'High';
+  ResolutionPreset currentResolutionPreset = ResolutionPreset.high;
   FlashMode? _currentFlashMode;
   List<DetectedObject>? objects;
   VideoPlayerController? videoController;
@@ -51,6 +52,9 @@ class _CameraPageState extends State<CameraPage>
   List<File> allFileList = [];
   double ratio = 1.1;
   Icon exposeIcon = const Icon(Icons.exposure_zero);
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+  List<String> _imagePaths = [];
 
   @override
   void initState() {
@@ -64,6 +68,11 @@ class _CameraPageState extends State<CameraPage>
       ),
     );
     refreshCapturedImages();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _animation = Tween<double>(begin: 0, end: 1).animate(_animationController);
     super.initState();
   }
 
@@ -90,6 +99,18 @@ class _CameraPageState extends State<CameraPage>
       // Reinitialize the camera with same properties
       initCamera(_cameraController!.description);
     }
+  }
+
+  void onViewFinderTap(TapDownDetails details, BoxConstraints constraints) {
+    if (_cameraController == null) {
+      return;
+    }
+    final offset = Offset(
+      details.localPosition.dx / constraints.maxWidth,
+      details.localPosition.dy / constraints.maxHeight,
+    );
+    _cameraController!.setExposurePoint(offset);
+    _cameraController!.setFocusPoint(offset);
   }
 
   initCamera(CameraDescription cameraDescription) async {
@@ -253,7 +274,7 @@ class _CameraPageState extends State<CameraPage>
     }
     try {
       await _cameraController!.setFlashMode(FlashMode.off);
-      XFile rawImage = await _cameraController!.takePicture();
+      final rawImage = await _cameraController!.takePicture();
       File imageFile = File(rawImage.path);
 
       try {
@@ -263,11 +284,11 @@ class _CameraPageState extends State<CameraPage>
         String fileFormat = imageFile.path.split('.').last;
         int currentUnix = DateTime.now().millisecondsSinceEpoch;
 
-        print('${directory!.path}/$currentUnix.$fileFormat');
+        final path = '${directory!.path}/$currentUnix.$fileFormat';
 
-        await rawImage.saveTo(
-          '${directory.path}/$currentUnix.$fileFormat',
-        );
+        print(path);
+
+        await rawImage.saveTo(path);
 
         refreshCapturedImages();
         _cameraController!.setZoomLevel(1.0);
@@ -276,12 +297,12 @@ class _CameraPageState extends State<CameraPage>
         print("Image not saved");
       }
 
-      // Navigator.push(
-      //     context,
-      //     MaterialPageRoute(
-      //         builder: (context) => PreviewPage(
-      //               picture: rawImage,
-      //             )));
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => PreviewPage(
+                    picture: rawImage,
+                  )));
     } on CameraException catch (e) {
       debugPrint('Error occured while taking picture: $e');
       return null;
@@ -295,6 +316,10 @@ class _CameraPageState extends State<CameraPage>
     List<Map<int, dynamic>> fileNames = [];
 
     for (var file in fileList) {
+      if (file.path.contains('.jpg')) {
+        _imagePaths.add(file.path);
+      }
+
       if (file.path.contains('.jpg') || file.path.contains('.mp4')) {
         allFileList.add(File(file.path));
 
@@ -315,108 +340,124 @@ class _CameraPageState extends State<CameraPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-          child: _isCameraInitialized
-              ? Column(
-                  children: [
-                    Stack(children: [
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.75,
-                        child: AspectRatio(
-                          aspectRatio:
-                              1.1 / _cameraController!.value.aspectRatio,
-                          child: _cameraController!.buildPreview(),
-                        ),
-                      ),
-                    ]),
-                    SizedBox(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      body: SingleChildScrollView(
+        child: SafeArea(
+            child: _isCameraInitialized
+                ? Column(
+                    children: [
+                      Stack(
                         children: [
-                          IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _isCameraInitialized = false;
-                                });
-                                initCamera(
-                                  cameras[_isRearCameraSelected ? 1 : 0],
+                          Container(
+                            margin: const EdgeInsets.only(
+                                top: 10, left: 10, right: 10),
+                            clipBehavior: Clip.antiAlias,
+                            decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20)),
+                            height: MediaQuery.of(context).size.height * 0.77,
+                            width: double.infinity,
+                            child: CameraPreview(
+                              _cameraController!,
+                              child: LayoutBuilder(builder:
+                                  (BuildContext context,
+                                      BoxConstraints constraints) {
+                                return GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTapDown: (details) =>
+                                      onViewFinderTap(details, constraints),
                                 );
-                                setState(() {
-                                  _isRearCameraSelected =
-                                      !_isRearCameraSelected;
-                                });
-                              },
-                              icon: const Icon(Icons.switch_camera_outlined)),
-                          IconButton(
-                              onPressed: () async {
-                                setState(() {
-                                  if (_currentFlashMode == FlashMode.off ||
-                                      _currentFlashMode == FlashMode.auto) {
-                                    _currentFlashMode = FlashMode.torch;
-                                  } else if (_currentFlashMode ==
-                                      FlashMode.torch) {
-                                    _currentFlashMode = FlashMode.off;
-                                  }
-                                });
-
-                                await _cameraController!
-                                    .setFlashMode(_currentFlashMode!);
-                              },
-                              icon: const Icon(Icons.flash_off)),
-                          IconButton(
-                              onPressed: () {
-                                var ele =
-                                    icons[(currPosIcon + 1) % icons.length];
-                                setState(() {
-                                  exposeIcon = ele[1];
-                                  currPosIcon = currPosIcon + 1;
-                                });
-                                _cameraController!.setExposureOffset(ele[0]);
-                              },
-                              icon: exposeIcon),
-                          IconButton(
-                            onPressed: () {
-                              setState(() {
-                                autoFocus = !autoFocus;
-                                startStream = true;
-                                startImageStream();
-                              });
-                            },
-                            icon: Icon(
-                              autoFocus && startStream
-                                  ? Icons.center_focus_strong_rounded
-                                  : Icons.center_focus_strong_outlined,
-                              color: autoFocus && startStream
-                                  ? Colors.green
-                                  : Colors.black,
+                              }),
                             ),
                           ),
-                          TextButton(
-                              onPressed: () {
-                                var ele = resolutions[
-                                    (currPosRes + 1) % resolutions.length];
-                                setState(() {
-                                  currentResolutionPreset = ele[0];
-                                  _currentResolutionPreset = ele[1];
-                                  currPosRes = currPosRes + 1;
-                                  _isCameraInitialized = false;
-                                });
-                                initCamera(_cameraController!.description);
-                              },
-                              child: Text(
-                                _currentResolutionPreset,
-                                style: const TextStyle(
-                                    fontSize: 17, color: Colors.blue),
-                              )),
                         ],
                       ),
-                    ),
-                    Expanded(
-                      child: SizedBox(
+                      SizedBox(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _isCameraInitialized = false;
+                                  });
+                                  initCamera(
+                                    cameras[_isRearCameraSelected ? 1 : 0],
+                                  );
+                                  setState(() {
+                                    _isRearCameraSelected =
+                                        !_isRearCameraSelected;
+                                  });
+                                },
+                                icon: const Icon(Icons.switch_camera_outlined)),
+                            IconButton(
+                                onPressed: () async {
+                                  setState(() {
+                                    if (_currentFlashMode == FlashMode.off ||
+                                        _currentFlashMode == FlashMode.auto) {
+                                      _currentFlashMode = FlashMode.torch;
+                                    } else if (_currentFlashMode ==
+                                        FlashMode.torch) {
+                                      _currentFlashMode = FlashMode.off;
+                                    }
+                                  });
+
+                                  await _cameraController!
+                                      .setFlashMode(_currentFlashMode!);
+                                },
+                                icon: const Icon(Icons.flash_off)),
+                            IconButton(
+                                onPressed: () {
+                                  var ele =
+                                      icons[(currPosIcon + 1) % icons.length];
+                                  setState(() {
+                                    exposeIcon = ele[1];
+                                    currPosIcon = currPosIcon + 1;
+                                  });
+                                  _cameraController!.setExposureOffset(ele[0]);
+                                },
+                                icon: exposeIcon),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  autoFocus = !autoFocus;
+                                  startStream = true;
+                                  startImageStream();
+                                });
+                              },
+                              icon: Icon(
+                                autoFocus && startStream
+                                    ? Icons.center_focus_strong_rounded
+                                    : Icons.center_focus_strong_outlined,
+                                color: autoFocus && startStream
+                                    ? Colors.green
+                                    : Colors.black,
+                              ),
+                            ),
+                            TextButton(
+                                onPressed: () {
+                                  var ele = resolutions[
+                                      (currPosRes + 1) % resolutions.length];
+                                  setState(() {
+                                    currentResolutionPreset = ele[0];
+                                    _currentResolutionPreset = ele[1];
+                                    currPosRes = currPosRes + 1;
+                                    _isCameraInitialized = false;
+                                  });
+                                  initCamera(_cameraController!.description);
+                                },
+                                child: Text(
+                                  _currentResolutionPreset,
+                                  style: const TextStyle(
+                                      fontSize: 17, color: Colors.blue),
+                                )),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
                             InkWell(
+                              borderRadius: BorderRadius.circular(10),
                               onTap: () {
                                 setState(() {
                                   _currentZoomLevel = _currentZoomLevel - 1;
@@ -426,6 +467,8 @@ class _CameraPageState extends State<CameraPage>
                                   _cameraController!
                                       .setZoomLevel(_currentZoomLevel);
                                 });
+                                _animationController.reset();
+                                _animationController.forward();
                               },
                               onDoubleTap: () {
                                 setState(() {
@@ -436,19 +479,32 @@ class _CameraPageState extends State<CameraPage>
                                   _cameraController!
                                       .setZoomLevel(_currentZoomLevel);
                                 });
+                                _animationController.reset();
+                                _animationController.forward();
                               },
                               child: Container(
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                    color: Colors.amber,
-                                    borderRadius: BorderRadius.circular(10)),
+                                  color: Colors.amber,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                                 height: 60,
                                 width: 60,
-                                child: Text(
-                                  _currentZoomLevel.toInt().toString() + "x",
-                                  style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.bold),
+                                child: AnimatedBuilder(
+                                  animation: _animation,
+                                  builder:
+                                      (BuildContext context, Widget? child) {
+                                    return Transform.scale(
+                                      scale: _animation.value * 0.2 + 1,
+                                      child: Text(
+                                        _currentZoomLevel.toInt().toString() +
+                                            "x",
+                                        style: const TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
@@ -461,19 +517,25 @@ class _CameraPageState extends State<CameraPage>
                                 children: const [
                                   Icon(
                                     Icons.circle,
-                                    color: Colors.black,
+                                    color: Color.fromARGB(65, 0, 0, 0),
                                     size: 90,
                                   ),
                                   Icon(
                                     Icons.circle,
-                                    color: Colors.white,
+                                    color: Colors.black,
                                     size: 75,
                                   ),
                                 ],
                               ),
                             ),
                             GestureDetector(
-                              onTap: () {},
+                              onTap: () async {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) => GalleryPage(
+                                            imagePaths: _imagePaths)));
+                              },
                               child: Container(
                                 width: 60,
                                 height: 60,
@@ -495,10 +557,10 @@ class _CameraPageState extends State<CameraPage>
                           ],
                         ),
                       ),
-                    ),
-                  ],
-                )
-              : const Center(child: CircularProgressIndicator())),
+                    ],
+                  )
+                : const Center(child: CircularProgressIndicator())),
+      ),
     );
   }
 }
