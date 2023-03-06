@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:camdish/pages/preview_page.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:video_player/video_player.dart';
 import '../main.dart';
 import '../constant/constants.dart';
 import 'gallery_page.dart';
@@ -16,6 +15,7 @@ import 'gallery_page.dart';
 //Testing on real world
 //Improve image clicking button
 //Improve autozoom
+
 class CameraPage extends StatefulWidget {
   const CameraPage({Key? key}) : super(key: key);
 
@@ -40,7 +40,6 @@ class _CameraPageState extends State<CameraPage>
   ResolutionPreset currentResolutionPreset = ResolutionPreset.high;
   FlashMode? _currentFlashMode;
   List<DetectedObject>? objects;
-  VideoPlayerController? videoController;
   File? _imageFile;
   bool startStream = false;
   bool autoFocus = false;
@@ -82,7 +81,6 @@ class _CameraPageState extends State<CameraPage>
   @override
   void dispose() {
     _cameraController!.dispose();
-    videoController?.dispose();
     super.dispose();
   }
 
@@ -341,6 +339,29 @@ class _CameraPageState extends State<CameraPage>
     }
   }
 
+  void showSnackBar(text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        clipBehavior: Clip.antiAlias,
+        elevation: 0.0,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 10, left: 90, right: 90),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        content: Container(
+          color: Colors.transparent,
+          height: 17,
+          child: Center(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -398,9 +419,11 @@ class _CameraPageState extends State<CameraPage>
                                     if (_currentFlashMode == FlashMode.off ||
                                         _currentFlashMode == FlashMode.auto) {
                                       _currentFlashMode = FlashMode.torch;
+                                      showSnackBar("Flash On");
                                     } else if (_currentFlashMode ==
                                         FlashMode.torch) {
                                       _currentFlashMode = FlashMode.off;
+                                      showSnackBar("Flash Off");
                                     }
                                   });
 
@@ -423,6 +446,7 @@ class _CameraPageState extends State<CameraPage>
                                 onPressed: () {
                                   _animationController.reset();
                                   _animationController.forward();
+                                  showSnackBar("Auto Zooming");
                                   setState(() {
                                     autoFocus = !autoFocus;
                                     startStream = true;
