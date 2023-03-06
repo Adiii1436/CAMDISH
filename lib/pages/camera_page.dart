@@ -6,13 +6,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
-import 'package:image_labelling/pages/preview_page.dart';
+import 'package:camdish/pages/preview_page.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import '../main.dart';
 import '../constant/constants.dart';
 import 'gallery_page.dart';
 
+//Testing on real world
+//Improve image clicking button
+//Improve autozoom
 class CameraPage extends StatefulWidget {
   const CameraPage({Key? key}) : super(key: key);
 
@@ -171,6 +174,7 @@ class _CameraPageState extends State<CameraPage>
             detectObjectOnCamera();
             if (objects!.isNotEmpty) {
               startStream = false;
+              autoFocus = false;
             }
             isDetectingObjects = false;
           }
@@ -218,6 +222,7 @@ class _CameraPageState extends State<CameraPage>
         final boundingBox = objects!.first.boundingBox;
         zoomToDetectedObject(boundingBox);
         startStream = false;
+        autoFocus = false;
       });
     } else {
       await _cameraController!.setZoomLevel(1.0);
@@ -315,12 +320,11 @@ class _CameraPageState extends State<CameraPage>
     allFileList.clear();
     List<Map<int, dynamic>> fileNames = [];
 
-    for (var file in fileList) {
-      if (file.path.contains('.jpg')) {
-        _imagePaths.add(file.path);
-      }
-
+    for (var file in fileList.reversed.toList()) {
       if (file.path.contains('.jpg') || file.path.contains('.mp4')) {
+        if (file.path.contains('.jpg')) {
+          _imagePaths.add(file.path);
+        }
         allFileList.add(File(file.path));
 
         String name = file.path.split('/').last.split('.').first;
@@ -349,11 +353,11 @@ class _CameraPageState extends State<CameraPage>
                         children: [
                           Container(
                             margin: const EdgeInsets.only(
-                                top: 10, left: 10, right: 10),
+                                top: 10, left: 8, right: 8),
                             clipBehavior: Clip.antiAlias,
                             decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20)),
-                            height: MediaQuery.of(context).size.height * 0.77,
+                            height: MediaQuery.of(context).size.height * 0.7,
                             width: double.infinity,
                             child: CameraPreview(
                               _cameraController!,
@@ -416,22 +420,33 @@ class _CameraPageState extends State<CameraPage>
                                 },
                                 icon: exposeIcon),
                             IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  autoFocus = !autoFocus;
-                                  startStream = true;
-                                  startImageStream();
-                                });
-                              },
-                              icon: Icon(
-                                autoFocus && startStream
-                                    ? Icons.center_focus_strong_rounded
-                                    : Icons.center_focus_strong_outlined,
-                                color: autoFocus && startStream
-                                    ? Colors.green
-                                    : Colors.black,
-                              ),
-                            ),
+                                onPressed: () {
+                                  _animationController.reset();
+                                  _animationController.forward();
+                                  setState(() {
+                                    autoFocus = !autoFocus;
+                                    startStream = true;
+                                    startImageStream();
+                                  });
+                                },
+                                icon: AnimatedBuilder(
+                                    animation: _animation,
+                                    builder:
+                                        (BuildContext context, Widget? child) {
+                                      return Transform.scale(
+                                        scale: _animation.value * 0.1 + 1,
+                                        child: Icon(
+                                          autoFocus && startStream
+                                              ? Icons
+                                                  .center_focus_strong_rounded
+                                              : Icons
+                                                  .center_focus_strong_outlined,
+                                          color: autoFocus && startStream
+                                              ? Colors.green
+                                              : Colors.black,
+                                        ),
+                                      );
+                                    })),
                             TextButton(
                                 onPressed: () {
                                   var ele = resolutions[
@@ -457,8 +472,10 @@ class _CameraPageState extends State<CameraPage>
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
                             InkWell(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(100),
                               onTap: () {
+                                _animationController.reset();
+                                _animationController.forward();
                                 setState(() {
                                   _currentZoomLevel = _currentZoomLevel - 1;
                                   if (_currentZoomLevel < 1) {
@@ -467,10 +484,10 @@ class _CameraPageState extends State<CameraPage>
                                   _cameraController!
                                       .setZoomLevel(_currentZoomLevel);
                                 });
-                                _animationController.reset();
-                                _animationController.forward();
                               },
                               onDoubleTap: () {
+                                _animationController.reset();
+                                _animationController.forward();
                                 setState(() {
                                   _currentZoomLevel = _currentZoomLevel + 1;
                                   if (_currentZoomLevel > _maxAvailableZoom) {
@@ -479,17 +496,14 @@ class _CameraPageState extends State<CameraPage>
                                   _cameraController!
                                       .setZoomLevel(_currentZoomLevel);
                                 });
-                                _animationController.reset();
-                                _animationController.forward();
                               },
                               child: Container(
                                 alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: Colors.amber,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                height: 60,
-                                width: 60,
+                                decoration: const BoxDecoration(
+                                    color: Colors.amber,
+                                    shape: BoxShape.circle),
+                                height: 65,
+                                width: 65,
                                 child: AnimatedBuilder(
                                   animation: _animation,
                                   builder:
@@ -517,19 +531,20 @@ class _CameraPageState extends State<CameraPage>
                                 children: const [
                                   Icon(
                                     Icons.circle,
-                                    color: Color.fromARGB(65, 0, 0, 0),
-                                    size: 90,
+                                    color: Color.fromARGB(45, 69, 68, 68),
+                                    size: 100,
                                   ),
                                   Icon(
-                                    Icons.circle,
-                                    color: Colors.black,
-                                    size: 75,
+                                    Icons.circle_sharp,
+                                    color: Color.fromARGB(255, 251, 250, 250),
+                                    size: 80,
                                   ),
                                 ],
                               ),
                             ),
                             GestureDetector(
                               onTap: () async {
+                                refreshCapturedImages();
                                 Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -537,11 +552,11 @@ class _CameraPageState extends State<CameraPage>
                                             imagePaths: _imagePaths)));
                               },
                               child: Container(
-                                width: 60,
-                                height: 60,
+                                width: 65,
+                                height: 65,
                                 decoration: BoxDecoration(
                                   color: Colors.black,
-                                  borderRadius: BorderRadius.circular(10.0),
+                                  shape: BoxShape.circle,
                                   border:
                                       Border.all(color: Colors.white, width: 2),
                                   image: _imageFile != null

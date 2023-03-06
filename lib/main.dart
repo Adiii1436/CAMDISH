@@ -1,6 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:image_labelling/pages/camera_page.dart';
+import 'package:camdish/pages/camera_page.dart';
 
 List<CameraDescription> cameras = [];
 
