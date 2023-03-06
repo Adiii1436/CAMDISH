@@ -90,6 +90,8 @@ class _CameraPageState extends State<CameraPage>
   @override
   void dispose() {
     _cameraController!.dispose();
+    _animationControllerZoom.dispose();
+    _animationControllerFocus.dispose();
     super.dispose();
   }
 
@@ -302,7 +304,7 @@ class _CameraPageState extends State<CameraPage>
 
         await rawImage.saveTo(path);
 
-        refreshCapturedImages();
+        await refreshCapturedImages();
         _cameraController!.setZoomLevel(1.0);
         print('Picture is saved');
       } catch (e) {
@@ -330,7 +332,9 @@ class _CameraPageState extends State<CameraPage>
     for (var file in fileList.reversed.toList()) {
       if (file.path.contains('.jpg') || file.path.contains('.mp4')) {
         if (file.path.contains('.jpg')) {
-          _imagePaths.add(file.path);
+          if (!_imagePaths.contains(file.path)) {
+            _imagePaths.add(file.path);
+          }
         }
         allFileList.add(File(file.path));
 
@@ -339,12 +343,24 @@ class _CameraPageState extends State<CameraPage>
       }
     }
 
+    if (fileNames.isEmpty) {
+      setState(() {
+        _imagePaths.clear();
+        allFileList.clear();
+        _imageFile = null;
+      });
+    }
+
     if (fileNames.isNotEmpty) {
       final recentFile =
           fileNames.reduce((curr, next) => curr[0] > next[0] ? curr : next);
       String recentFileName = recentFile[1];
       _imageFile = File('${directory.path}/$recentFileName');
-      setState(() {});
+      setState(() {
+        _imagePaths;
+        allFileList;
+        _imageFile;
+      });
     }
   }
 
@@ -577,12 +593,13 @@ class _CameraPageState extends State<CameraPage>
                             ),
                             GestureDetector(
                               onTap: () async {
-                                refreshCapturedImages();
+                                await refreshCapturedImages();
                                 Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) => GalleryPage(
-                                            imagePaths: _imagePaths)));
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => GalleryPage(
+                                                imagePaths: _imagePaths)))
+                                    .then((_) => refreshCapturedImages());
                               },
                               child: Container(
                                 width: 65,
