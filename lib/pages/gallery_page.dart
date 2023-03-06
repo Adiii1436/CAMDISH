@@ -14,16 +14,24 @@ class GalleryPage extends StatelessWidget {
         foregroundColor: Colors.black,
         elevation: 0.0,
       ),
-      body: ListView.builder(
-        itemCount: imagePaths.length,
-        itemBuilder: (BuildContext context, int index) {
-          final path = imagePaths[index];
-          return Padding(
-            padding: const EdgeInsets.all(8),
-            child: Image.file(File(path)),
-          );
-        },
-      ),
+      body: Container(
+          height: double.infinity,
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 20),
+          child: imagePaths.isNotEmpty
+              ? ListView.builder(
+                  itemCount: imagePaths.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    final path = imagePaths[index];
+                    return Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Image.file(File(path)),
+                    );
+                  },
+                )
+              : const Center(
+                  child: Text('No Images'),
+                )),
     );
   }
 }

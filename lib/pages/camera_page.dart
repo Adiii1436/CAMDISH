@@ -54,8 +54,10 @@ class _CameraPageState extends State<CameraPage>
   List<File> allFileList = [];
   double ratio = 1.1;
   Icon exposeIcon = const Icon(Icons.exposure_zero);
-  late AnimationController _animationController;
-  late Animation<double> _animation;
+  late AnimationController _animationControllerZoom;
+  late AnimationController _animationControllerFocus;
+  late Animation<double> _animationZoom;
+  late Animation<double> _animationFocus;
   List<String> _imagePaths = [];
 
   @override
@@ -70,11 +72,18 @@ class _CameraPageState extends State<CameraPage>
       ),
     );
     refreshCapturedImages();
-    _animationController = AnimationController(
+    _animationControllerZoom = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-    _animation = Tween<double>(begin: 0, end: 1).animate(_animationController);
+    _animationControllerFocus = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _animationFocus =
+        Tween<double>(begin: 0, end: 1).animate(_animationControllerFocus);
+    _animationZoom =
+        Tween<double>(begin: 0, end: 1).animate(_animationControllerZoom);
     super.initState();
   }
 
@@ -107,9 +116,10 @@ class _CameraPageState extends State<CameraPage>
       return;
     }
     final offset = Offset(
-      details.localPosition.dx / constraints.maxWidth,
-      details.localPosition.dy / constraints.maxHeight,
+      details.globalPosition.dx / MediaQuery.of(context).size.width,
+      details.globalPosition.dy / MediaQuery.of(context).size.height,
     );
+
     _cameraController!.setExposurePoint(offset);
     _cameraController!.setFocusPoint(offset);
   }
@@ -170,10 +180,6 @@ class _CameraPageState extends State<CameraPage>
             isDetectingObjects = true;
             _cameraImage = imageFromStream;
             detectObjectOnCamera();
-            if (objects!.isNotEmpty) {
-              startStream = false;
-              autoFocus = false;
-            }
             isDetectingObjects = false;
           }
         } else if (!startStream) {
@@ -221,6 +227,7 @@ class _CameraPageState extends State<CameraPage>
         zoomToDetectedObject(boundingBox);
         startStream = false;
         autoFocus = false;
+        objects;
       });
     } else {
       await _cameraController!.setZoomLevel(1.0);
@@ -229,6 +236,8 @@ class _CameraPageState extends State<CameraPage>
         isDetectingObjects = false;
         _currentZoomLevel = 1.0;
         startStream = true;
+        autoFocus = true;
+        objects;
       });
     }
   }
@@ -238,17 +247,17 @@ class _CameraPageState extends State<CameraPage>
     double objectWidth = boundingBox.width;
     double screenHeight = MediaQuery.of(context).size.height;
     double screenWidth = MediaQuery.of(context).size.width;
+    double minZoom = await _cameraController!.getMinZoomLevel();
+    double maxZoom = await _cameraController!.getMaxZoomLevel();
+    double currentZoom = _currentZoomLevel;
 
     double scaleY = objectHeight / screenHeight * screenHeight;
     double scaleX = objectWidth / screenWidth * screenWidth;
 
     double scale = max(scaleY, scaleX);
-    scale = min(scale * 0.7, 2.0);
+    scale = min(scale * 0.9, 2.0);
 
-    double minZoom = await _cameraController!.getMinZoomLevel();
-    double maxZoom = await _cameraController!.getMaxZoomLevel();
-    double currentZoom = _currentZoomLevel;
-    double newZoom = scale * currentZoom;
+    double newZoom = scale * currentZoom + minZoom;
 
     if (currentZoom != newZoom) {
       final _animationController = AnimationController(
@@ -357,7 +366,7 @@ class _CameraPageState extends State<CameraPage>
             ),
           ),
         ),
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -444,9 +453,9 @@ class _CameraPageState extends State<CameraPage>
                                 icon: exposeIcon),
                             IconButton(
                                 onPressed: () {
-                                  _animationController.reset();
-                                  _animationController.forward();
-                                  showSnackBar("Auto Zooming");
+                                  _animationControllerFocus.reset();
+                                  _animationControllerFocus.forward();
+                                  showSnackBar("Detecting Objects");
                                   setState(() {
                                     autoFocus = !autoFocus;
                                     startStream = true;
@@ -454,11 +463,11 @@ class _CameraPageState extends State<CameraPage>
                                   });
                                 },
                                 icon: AnimatedBuilder(
-                                    animation: _animation,
+                                    animation: _animationFocus,
                                     builder:
                                         (BuildContext context, Widget? child) {
                                       return Transform.scale(
-                                        scale: _animation.value * 0.1 + 1,
+                                        scale: _animationFocus.value * 0.1 + 1,
                                         child: Icon(
                                           autoFocus && startStream
                                               ? Icons
@@ -497,9 +506,9 @@ class _CameraPageState extends State<CameraPage>
                           children: [
                             InkWell(
                               borderRadius: BorderRadius.circular(100),
-                              onTap: () {
-                                _animationController.reset();
-                                _animationController.forward();
+                              onDoubleTap: () {
+                                _animationControllerZoom.reset();
+                                _animationControllerZoom.forward();
                                 setState(() {
                                   _currentZoomLevel = _currentZoomLevel - 1;
                                   if (_currentZoomLevel < 1) {
@@ -509,9 +518,9 @@ class _CameraPageState extends State<CameraPage>
                                       .setZoomLevel(_currentZoomLevel);
                                 });
                               },
-                              onDoubleTap: () {
-                                _animationController.reset();
-                                _animationController.forward();
+                              onTap: () {
+                                _animationControllerZoom.reset();
+                                _animationControllerZoom.forward();
                                 setState(() {
                                   _currentZoomLevel = _currentZoomLevel + 1;
                                   if (_currentZoomLevel > _maxAvailableZoom) {
@@ -529,11 +538,11 @@ class _CameraPageState extends State<CameraPage>
                                 height: 65,
                                 width: 65,
                                 child: AnimatedBuilder(
-                                  animation: _animation,
+                                  animation: _animationZoom,
                                   builder:
                                       (BuildContext context, Widget? child) {
                                     return Transform.scale(
-                                      scale: _animation.value * 0.2 + 1,
+                                      scale: _animationZoom.value * 0.2 + 1,
                                       child: Text(
                                         _currentZoomLevel.toInt().toString() +
                                             "x",
