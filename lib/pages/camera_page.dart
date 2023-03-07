@@ -371,19 +371,23 @@ class _CameraPageState extends State<CameraPage>
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.only(bottom: 10, left: 90, right: 90),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        content: Container(
-          color: Colors.transparent,
-          height: 17,
-          child: Center(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
+        content: Center(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
         ),
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  double _volumeValue = 50;
+
+  void onVolumeChanged(double value) {
+    setState(() {
+      _volumeValue = value;
+    });
   }
 
   @override
@@ -496,10 +500,12 @@ class _CameraPageState extends State<CameraPage>
                                 onPressed: () {
                                   _animationControllerFocus.reset();
                                   _animationControllerFocus.forward();
-                                  showSnackBar("Detecting Objects");
+                                  if (!startStream) {
+                                    showSnackBar("Detecting Objects");
+                                  }
                                   setState(() {
                                     autoFocus = !autoFocus;
-                                    startStream = true;
+                                    startStream = !startStream;
                                     startImageStream();
                                   });
                                 },
@@ -531,6 +537,8 @@ class _CameraPageState extends State<CameraPage>
                                     currPosRes = currPosRes + 1;
                                     _isCameraInitialized = false;
                                     _currentZoomLevel = 1.0;
+                                    startStream = false;
+                                    autoFocus = false;
                                   });
                                   initCamera(_cameraController!.description);
                                 },

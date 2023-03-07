@@ -46,9 +46,16 @@ class _GalleryPageState extends State<GalleryPage> {
                                       picture: XFile(path),
                                     )));
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Image.file(File(path)),
+                      child: Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20)),
+                        // padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.all(8),
+                        child: Image.file(
+                          File(path),
+                          isAntiAlias: true,
+                        ),
                       ),
                     );
                   },
