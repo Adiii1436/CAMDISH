@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:camdish/pages/preview_page.dart';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 class GalleryPage extends StatefulWidget {
@@ -35,6 +37,14 @@ class _GalleryPageState extends State<GalleryPage> {
                           file.delete();
                           widget.imagePaths.removeAt(index);
                         });
+                      },
+                      onTap: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => PreviewPage(
+                                      picture: XFile(path),
+                                    )));
                       },
                       child: Padding(
                         padding: const EdgeInsets.all(8),

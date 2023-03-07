@@ -232,11 +232,9 @@ class _CameraPageState extends State<CameraPage>
         objects;
       });
     } else {
-      await _cameraController!.setZoomLevel(1.0);
       setState(() {
         output = "No Object detected";
         isDetectingObjects = false;
-        _currentZoomLevel = 1.0;
         startStream = true;
         autoFocus = true;
         objects;
@@ -262,20 +260,24 @@ class _CameraPageState extends State<CameraPage>
     double newZoom = scale * currentZoom + minZoom;
 
     if (currentZoom != newZoom) {
-      final _animationController = AnimationController(
-        duration: const Duration(milliseconds: 500),
-        vsync: this,
-      );
-      final _zoomTween = Tween<double>(
-          begin: currentZoom, end: min(max(newZoom, minZoom), maxZoom));
-      _animationController.forward();
-      _animationController.addListener(() async {
-        double newZoom = _zoomTween.evaluate(_animationController);
-        await _cameraController!.setZoomLevel(newZoom);
-        setState(() {
-          _currentZoomLevel = newZoom;
+      if (newZoom > maxZoom && currentZoom == maxZoom) {
+        showSnackBar("Max zoom reached");
+      } else {
+        final _animationController = AnimationController(
+          duration: const Duration(milliseconds: 500),
+          vsync: this,
+        );
+        final _zoomTween = Tween<double>(
+            begin: currentZoom, end: min(max(newZoom, minZoom), maxZoom));
+        _animationController.forward();
+        _animationController.addListener(() async {
+          double newZoom = _zoomTween.evaluate(_animationController);
+          await _cameraController!.setZoomLevel(newZoom);
+          setState(() {
+            _currentZoomLevel = newZoom;
+          });
         });
-      });
+      }
     }
   }
 
@@ -299,16 +301,13 @@ class _CameraPageState extends State<CameraPage>
         int currentUnix = DateTime.now().millisecondsSinceEpoch;
 
         final path = '${directory!.path}/$currentUnix.$fileFormat';
-
-        print(path);
-
         await rawImage.saveTo(path);
 
-        await refreshCapturedImages();
-        _cameraController!.setZoomLevel(1.0);
-        print('Picture is saved');
+        refreshCapturedImages();
+
+        _cameraController!.setZoomLevel(_currentZoomLevel = 1.0);
       } catch (e) {
-        print("Image not saved");
+        debugPrint(e.toString());
       }
 
       Navigator.push(
@@ -418,6 +417,27 @@ class _CameraPageState extends State<CameraPage>
                               }),
                             ),
                           ),
+                          Container(
+                            margin: EdgeInsets.only(
+                                top: MediaQuery.of(context).size.height * 0.65,
+                                left: MediaQuery.of(context).size.width * 0.83),
+                            child: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _cameraController!
+                                        .setZoomLevel(_currentZoomLevel = 1.0);
+                                    currPosIcon = 4;
+                                    exposeIcon = icons[currPosIcon][1];
+                                    _cameraController!.setExposureOffset(
+                                        icons[currPosIcon][0]);
+                                  });
+                                },
+                                icon: const Icon(
+                                  Icons.restart_alt,
+                                  size: 30,
+                                  color: Colors.white,
+                                )),
+                          ),
                         ],
                       ),
                       SizedBox(
@@ -437,7 +457,9 @@ class _CameraPageState extends State<CameraPage>
                                         !_isRearCameraSelected;
                                   });
                                 },
-                                icon: const Icon(Icons.switch_camera_outlined)),
+                                icon: _isRearCameraSelected
+                                    ? const Icon(Icons.camera_rear_outlined)
+                                    : const Icon(Icons.camera_front)),
                             IconButton(
                                 onPressed: () async {
                                   setState(() {
@@ -455,7 +477,10 @@ class _CameraPageState extends State<CameraPage>
                                   await _cameraController!
                                       .setFlashMode(_currentFlashMode!);
                                 },
-                                icon: const Icon(Icons.flash_off)),
+                                icon: _currentFlashMode == FlashMode.off ||
+                                        _currentFlashMode == FlashMode.auto
+                                    ? const Icon(Icons.flash_off_outlined)
+                                    : const Icon(Icons.flash_on)),
                             IconButton(
                                 onPressed: () {
                                   var ele =
@@ -505,13 +530,17 @@ class _CameraPageState extends State<CameraPage>
                                     _currentResolutionPreset = ele[1];
                                     currPosRes = currPosRes + 1;
                                     _isCameraInitialized = false;
+                                    _currentZoomLevel = 1.0;
                                   });
                                   initCamera(_cameraController!.description);
                                 },
                                 child: Text(
                                   _currentResolutionPreset,
-                                  style: const TextStyle(
-                                      fontSize: 17, color: Colors.blue),
+                                  style: TextStyle(
+                                      fontSize: 17,
+                                      color: _currentResolutionPreset == "High"
+                                          ? Colors.blue
+                                          : Colors.pink),
                                 )),
                           ],
                         ),
@@ -624,7 +653,7 @@ class _CameraPageState extends State<CameraPage>
                       ),
                     ],
                   )
-                : const Center(child: CircularProgressIndicator())),
+                : Container()),
       ),
     );
   }
