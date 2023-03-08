@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:core';
 import 'dart:io';
 import 'dart:math';
 import 'package:camera/camera.dart';
@@ -251,11 +251,11 @@ class _CameraPageState extends State<CameraPage>
     double maxZoom = await _cameraController!.getMaxZoomLevel();
     double currentZoom = _currentZoomLevel;
 
-    double scaleY = objectHeight / screenHeight * screenHeight;
-    double scaleX = objectWidth / screenWidth * screenWidth;
+    double scaleY = objectHeight / screenHeight * screenWidth;
+    double scaleX = objectWidth / screenWidth * screenHeight;
 
     double scale = max(scaleY, scaleX);
-    scale = min(scale * 0.9, 2.0);
+    scale = min(scale * 1.5, 2.0);
 
     double newZoom = scale * currentZoom + minZoom;
 
@@ -322,7 +322,7 @@ class _CameraPageState extends State<CameraPage>
     }
   }
 
-  refreshCapturedImages() async {
+  void refreshCapturedImages() async {
     final directory = await getExternalStorageDirectory();
     List<FileSystemEntity> fileList = await directory!.list().toList();
     allFileList.clear();
@@ -380,14 +380,6 @@ class _CameraPageState extends State<CameraPage>
         duration: const Duration(seconds: 2),
       ),
     );
-  }
-
-  double _volumeValue = 50;
-
-  void onVolumeChanged(double value) {
-    setState(() {
-      _volumeValue = value;
-    });
   }
 
   @override
@@ -539,6 +531,10 @@ class _CameraPageState extends State<CameraPage>
                                     _currentZoomLevel = 1.0;
                                     startStream = false;
                                     autoFocus = false;
+                                    currPosIcon = 4;
+                                    exposeIcon = icons[currPosIcon][1];
+                                    _cameraController!.setExposureOffset(
+                                        icons[currPosIcon][0]);
                                   });
                                   initCamera(_cameraController!.description);
                                 },
@@ -630,7 +626,7 @@ class _CameraPageState extends State<CameraPage>
                             ),
                             GestureDetector(
                               onTap: () async {
-                                await refreshCapturedImages();
+                                refreshCapturedImages();
                                 Navigator.push(
                                         context,
                                         MaterialPageRoute(

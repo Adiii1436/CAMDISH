@@ -1,6 +1,6 @@
 ## Camdish: Effortlessly capture the perfect shot
 
-An intelligent flutter app that lets you take pictures of anything and autozooms to the right size to pick up an object that is in view.<br>
+An intelligent flutter app that lets you take pictures of anything and autozooms to the right size to pick up an object that is in view.
 It uses **[google_ml_kit](https://pub.dev/packages/google_ml_kit)** package, specifically it utilizes **[GoogleMLKit.vision.objectDetector](https://pub.dev/packages/google_mlkit_object_detection)** module to detect object and then zoom to the appropriate size of object.
 
 Key features of using [google_ml_kit](https://pub.dev/packages/google_ml_kit) package:
